@@ -41,7 +41,7 @@ def loadAccessions():
     """
     # sra_list = json.load(open("finalSRAList.json", "r"))
     sra_list = []
-    text = open("uniqueSRA.json").read()
+    text = open("uniqueSRAmin.json").read()
     tmp = text.split("\n")
     sra_list = [k[(k.index('"') + 1) : k.index('"', 8)] for k in tmp[1:-1]]
     return sra_list

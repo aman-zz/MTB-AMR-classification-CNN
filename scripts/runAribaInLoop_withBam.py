@@ -62,13 +62,14 @@ def runAriba(sra, in_dir, out_dir):
                 "ariba",
                 "run",
                 "--noclean",
+                "--verbose",
                 "out.card.prepareref",
                 reads1,
                 reads2,
                 out_dir,
             ]
             with open("./aribaRunLog.txt", "a+") as f:
-                subprocess.call(cmd, stdout=f)
+                subprocess.call(cmd)
     else:
         print("UGH! invalid path " + reads1 + " or " + reads2)
         with open("./sra_paired_read_notFound.txt", "a+") as l:
