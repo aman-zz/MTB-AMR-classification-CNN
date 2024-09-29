@@ -10,7 +10,7 @@ from sklearn.metrics import make_scorer
 
 drugL = ["ethambutol", "isoniazid", "pyrazinamide", "rifampicin"]
 # import feature labels
-feat_labels = np.loadtxt("raw_fList.txt", dtype=np.str)
+feat_labels = np.loadtxt("raw_fList.txt", dtype=np.str_)
 
 
 def tn(y_true, y_pred):
@@ -43,10 +43,10 @@ for drug in drugL:
     y = np.loadtxt("label_Y_" + drug + ".txt", dtype="i4")
     # clf = RandomForestClassifier(n_estimators=1000 ,random_state=0, n_jobs=-1, class_weight="balanced")
     clf = RandomForestClassifier(n_estimators=1000, random_state=0, n_jobs=-1)
-    rf_results = cross_validate(clf.fit(X, y), X, y, scoring=scoring, cv=10)
+    rf_results = cross_validate(clf.fit(X, y), X, y, scoring=scoring, cv=3)
     log = LogisticRegression(n_jobs=-1, penalty="l2")
     # log = LogisticRegression(n_jobs=-1,penalty='l1', random_state=0, class_weight="balanced")
-    lr_results = cross_validate(log.fit(X, y), X, y, scoring=scoring, cv=10)
+    lr_results = cross_validate(log.fit(X, y), X, y, scoring=scoring, cv=3)
 
     re_models = {"rf": rf_results, "lr": lr_results}
 

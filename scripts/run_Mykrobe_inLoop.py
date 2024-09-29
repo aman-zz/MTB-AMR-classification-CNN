@@ -48,7 +48,11 @@ def runMykrobe(sra):
             cmd = [
                 "mykrobe",
                 "predict",
+                "-t",
+                "10",
+                "--sample",
                 sra,
+                "--species",
                 "tb",
                 "--format",
                 "csv",

@@ -41,7 +41,7 @@ def get_ariba_prediction(sra_l, antibio):
                 ):
                     dic1[drug] = "R"
                     # assume one row in report won't show AMR for multiple drug
-                    del temp[drug]
+                    #del temp[drug]
         for drug, drugResis in temp.items():
             dic1[drug] = "S"
 
