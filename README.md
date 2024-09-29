@@ -29,6 +29,13 @@ Give the number of threads you want to use using -n.
     ariba getref card out.card
     ariba prepareref -f out.card.fa -m out.card.tsv out.card.prepareref
     python runAribaInLoop_withBam.py -f uniqueSRA.json -i fastqDump -o aribaResult_withBam -n 8 
+### Run Ariba with anaconda
+Install miniconda [here](https://docs.anaconda.com/miniconda/miniconda-install/)
+
+    conda create -n ariba --file req.txt
+    conda activate ariba
+    ariba prepareref -f out.card.fa -m out.card.tsv out.card.prepareref
+    python runAribaInLoop_withBam.py -f uniqueSRA.json -i fastqDump -o aribaResult_withBam -n 8 
 
 ### Get summary from Ariba result for isolates listed in 'uniqueSRA.json':
 
