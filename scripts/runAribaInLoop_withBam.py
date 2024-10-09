@@ -3,13 +3,14 @@ import subprocess
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from joblib import Parallel, delayed
+import shutil
 
 
 def main():
-    file_sra, in_dir, out_dir, n_j = getArgs()
+    file_sra, in_dir, out_dir, n_j, tempDir = getArgs()
     sra_list = loadAccessions(file_sra)
     Parallel(n_jobs=n_j, prefer="threads")(
-        delayed(runAriba)(sra, in_dir, out_dir) for sra in sra_list
+        delayed(runAriba)(sra, in_dir, out_dir, tempDir) for sra in sra_list
     )
 
 
@@ -34,6 +35,7 @@ def getArgs():
         description="Run Ariba for isolates to output variant report files and intermediate results",
     )
     parser.add_argument("-f", "--fSRAs", dest="fileSRAs")
+    parser.add_argument("--temp-dir", dest="tempDir")
 
     parser.add_argument("-i", "--iDir", dest="inDir")
 
@@ -44,12 +46,14 @@ def getArgs():
     i_dir = args.inDir
     o_dir = args.outDir
     n_job = args.nJobs
+    tempDir = args.tempDir
 
-    return f_sra, i_dir, o_dir, n_job
+    return f_sra, i_dir, o_dir, n_job, tempDir
 
 
-def runAriba(sra, in_dir, out_dir):
+def runAriba(sra, in_dir, out_dir, tempDir):
     # print (sra)
+
     fastq_dir = in_dir + "/"
     reads1 = fastq_dir + sra + "_1.fastq"
     reads2 = fastq_dir + sra + "_2.fastq"
@@ -58,10 +62,12 @@ def runAriba(sra, in_dir, out_dir):
         if not (os.path.isfile(out_dir + "/report.tsv")):
             if os.path.isdir(out_dir):
                 subprocess.run(["rm", "-r", out_dir])
+            if tempDir is not None or tempDir is not "":
+                tempDir, out_dir = out_dir, tempDir
             cmd = [
                 "ariba",
                 "run",
-                "--noclean",
+                #"--noclean",
                 "--verbose",
                 "out.card.prepareref",
                 reads1,
@@ -70,10 +76,16 @@ def runAriba(sra, in_dir, out_dir):
             ]
             with open("./aribaRunLog.txt", "a+") as f:
                 subprocess.call(cmd)
+            if tempDir is not None or tempDir is not "":
+                copyDir(out_dir, tempDir)
     else:
         print("UGH! invalid path " + reads1 + " or " + reads2)
         with open("./sra_paired_read_notFound.txt", "a+") as l:
             l.write(sra + "\n")
+
+def copyDir(src, dest):
+
+    shutil.copytree(src, dest, dirs_exist_ok=True)
 
 
 if __name__ == "__main__":
