@@ -62,7 +62,7 @@ def runAriba(sra, in_dir, out_dir, tempDir):
         if not (os.path.isfile(out_dir + "/report.tsv")):
             if os.path.isdir(out_dir):
                 subprocess.run(["rm", "-r", out_dir])
-            if tempDir is not None or tempDir is not "":
+            if tempDir is not None or tempDir != "":
                 tempDir, out_dir = out_dir, tempDir
             cmd = [
                 "ariba",
@@ -76,7 +76,7 @@ def runAriba(sra, in_dir, out_dir, tempDir):
             ]
             with open("./aribaRunLog.txt", "a+") as f:
                 subprocess.call(cmd)
-            if tempDir is not None or tempDir is not "":
+            if tempDir is not None or tempDir != "":
                 copyDir(out_dir, tempDir)
     else:
         print("UGH! invalid path " + reads1 + " or " + reads2)
