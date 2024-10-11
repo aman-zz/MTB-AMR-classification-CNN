@@ -76,15 +76,14 @@ def runAriba(sra, in_dir, out_dir, tempDir):
             ]
             with open("./aribaRunLog.txt", "a+") as f:
                 subprocess.call(cmd)
-            if tempDir is not None or tempDir != "":
-                copyDir(out_dir, tempDir)
     else:
         print("UGH! invalid path " + reads1 + " or " + reads2)
         with open("./sra_paired_read_notFound.txt", "a+") as l:
             l.write(sra + "\n")
 
 def copyDir(src, dest):
-
+    if os.path.exists(dest):
+        os.remove(dest)
     shutil.move(src, dest)
 
 
