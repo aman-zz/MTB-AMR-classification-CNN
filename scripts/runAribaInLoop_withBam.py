@@ -58,12 +58,10 @@ def runAriba(sra, in_dir, out_dir, tempDir):
     reads1 = fastq_dir + sra + "_1.fastq"
     reads2 = fastq_dir + sra + "_2.fastq"
     if os.path.isfile(reads1) and os.path.isfile(reads2):
+        if tempDir is not None or tempDir != "":
+            tempDir, out_dir = out_dir, tempDir
         out_dir = out_dir + "/outRun_" + sra
         if not (os.path.isfile(out_dir + "/report.tsv")):
-            if os.path.isdir(out_dir):
-                subprocess.run(["rm", "-r", out_dir])
-            if tempDir is not None or tempDir != "":
-                tempDir, out_dir = out_dir, tempDir
             if os.path.isdir(out_dir):
                 subprocess.run(["rm", "-r", out_dir])
             cmd = [
