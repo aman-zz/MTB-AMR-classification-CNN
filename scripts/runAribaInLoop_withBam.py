@@ -64,6 +64,8 @@ def runAriba(sra, in_dir, out_dir, tempDir):
                 subprocess.run(["rm", "-r", out_dir])
             if tempDir is not None or tempDir != "":
                 tempDir, out_dir = out_dir, tempDir
+            if os.path.isdir(out_dir):
+                subprocess.run(["rm", "-r", out_dir])
             cmd = [
                 "ariba",
                 "run",
