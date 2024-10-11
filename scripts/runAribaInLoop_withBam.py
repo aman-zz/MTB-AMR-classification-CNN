@@ -85,7 +85,7 @@ def runAriba(sra, in_dir, out_dir, tempDir):
 
 def copyDir(src, dest):
 
-    shutil.copytree(src, dest, dirs_exist_ok=True)
+    shutil.move(src, dest)
 
 
 if __name__ == "__main__":
