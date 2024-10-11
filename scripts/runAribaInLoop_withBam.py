@@ -3,14 +3,13 @@ import subprocess
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from joblib import Parallel, delayed
-import shutil
 
 
 def main():
-    file_sra, in_dir, out_dir, n_j, tempDir = getArgs()
+    file_sra, in_dir, out_dir, n_j = getArgs()
     sra_list = loadAccessions(file_sra)
     Parallel(n_jobs=n_j, prefer="threads")(
-        delayed(runAriba)(sra, in_dir, out_dir, tempDir) for sra in sra_list
+        delayed(runAriba)(sra, in_dir, out_dir) for sra in sra_list
     )
 
 
@@ -35,7 +34,6 @@ def getArgs():
         description="Run Ariba for isolates to output variant report files and intermediate results",
     )
     parser.add_argument("-f", "--fSRAs", dest="fileSRAs")
-    parser.add_argument("--temp-dir", dest="tempDir")
 
     parser.add_argument("-i", "--iDir", dest="inDir")
 
@@ -46,20 +44,16 @@ def getArgs():
     i_dir = args.inDir
     o_dir = args.outDir
     n_job = args.nJobs
-    tempDir = args.tempDir
 
-    return f_sra, i_dir, o_dir, n_job, tempDir
+    return f_sra, i_dir, o_dir, n_job
 
 
-def runAriba(sra, in_dir, out_dir, tempDir):
+def runAriba(sra, in_dir, out_dir):
     # print (sra)
-
     fastq_dir = in_dir + "/"
     reads1 = fastq_dir + sra + "_1.fastq"
     reads2 = fastq_dir + sra + "_2.fastq"
     if os.path.isfile(reads1) and os.path.isfile(reads2):
-        if tempDir is not None or tempDir != "":
-            tempDir, out_dir = out_dir, tempDir
         out_dir = out_dir + "/outRun_" + sra
         if not (os.path.isfile(out_dir + "/report.tsv")):
             if os.path.isdir(out_dir):
@@ -80,11 +74,6 @@ def runAriba(sra, in_dir, out_dir, tempDir):
         print("UGH! invalid path " + reads1 + " or " + reads2)
         with open("./sra_paired_read_notFound.txt", "a+") as l:
             l.write(sra + "\n")
-
-def copyDir(src, dest):
-    if os.path.exists(dest):
-        os.remove(dest)
-    shutil.move(src, dest)
 
 
 if __name__ == "__main__":
