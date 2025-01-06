@@ -4,7 +4,7 @@ import json
 
 # out put summary files will be save in dir 'summary_output_full'
 def run_summary():
-    sra_list = json.load(open("/home/aman/Projects/MTB-AMR-classification-CNN/sample_input_files/uniqueSRA.json"))
+    sra_list = json.load(open("uniqueSRA.json"))
     n_sra = len(sra_list)
 
     for sra in sra_list:

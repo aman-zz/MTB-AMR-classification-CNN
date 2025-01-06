@@ -1,34 +1,29 @@
 import numpy as np
-
-# from sklearn import datasets, linear_model
+import joblib
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import model_selection
 from sklearn.model_selection import cross_validate
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import make_scorer
+from sklearn.metrics import confusion_matrix, make_scorer
+from sklearn.preprocessing import StandardScaler
 
+# List of drugs
 drugL = ["ethambutol", "isoniazid", "pyrazinamide", "rifampicin"]
-# import feature labels
-feat_labels = np.loadtxt("raw_fList.txt", dtype=np.str_)
 
 
+# Define custom scoring functions
 def tn(y_true, y_pred):
     return confusion_matrix(y_true, y_pred)[0, 0]
-
 
 def fp(y_true, y_pred):
     return confusion_matrix(y_true, y_pred)[0, 1]
 
-
 def fn(y_true, y_pred):
     return confusion_matrix(y_true, y_pred)[1, 0]
-
 
 def tp(y_true, y_pred):
     return confusion_matrix(y_true, y_pred)[1, 1]
 
-
+# Define scoring metrics
 scoring = {
     "tp": make_scorer(tp),
     "tn": make_scorer(tn),
@@ -36,34 +31,74 @@ scoring = {
     "fn": make_scorer(fn),
 }
 
+def evaluate_model(model, X, y, scoring, cv=3):
+    """
+    Evaluate a model using cross-validation and return calculated metrics.
+    """
+    results = cross_validate(model, X, y, scoring=scoring, cv=cv)
 
+    s_tn = sum(results["test_tn"])
+    s_tp = sum(results["test_tp"])
+    s_fn = sum(results["test_fn"])
+    s_fp = sum(results["test_fp"])
+
+    metrics = {
+        "tp": s_tp,
+        "tn": s_tn,
+        "fp": s_fp,
+        "fn": s_fn,
+        "accuracy": (s_tp + s_tn) / float(s_tp + s_tn + s_fp + s_fn),
+        "specificity": s_tn / float(s_tn + s_fp),
+        "sensitivity": s_tp / float(s_tp + s_fn),
+        "precision": s_tp / float(s_tp + s_fp),
+    }
+
+    metrics["f_measure"] = 2 * (metrics["sensitivity"] * metrics["precision"]) / (
+        metrics["sensitivity"] + metrics["precision"]
+    )
+
+    return metrics
+
+def save_model(model, filename):
+    """
+    Save the trained model to a file for reuse.
+    """
+    joblib.dump(model, filename)
+
+# Process data and evaluate models for each drug
 for drug in drugL:
-    print(drug)
-    X = np.loadtxt("featureM_X_" + drug + ".txt", dtype="i4")
-    y = np.loadtxt("label_Y_" + drug + ".txt", dtype="i4")
-    # clf = RandomForestClassifier(n_estimators=1000 ,random_state=0, n_jobs=-1, class_weight="balanced")
-    clf = RandomForestClassifier(n_estimators=1000, random_state=0, n_jobs=-1)
-    rf_results = cross_validate(clf.fit(X, y), X, y, scoring=scoring, cv=3)
-    log = LogisticRegression(n_jobs=-1, penalty="l2")
-    # log = LogisticRegression(n_jobs=-1,penalty='l1', random_state=0, class_weight="balanced")
-    lr_results = cross_validate(log.fit(X, y), X, y, scoring=scoring, cv=3)
+    print(f"Evaluating models for drug: {drug}")
 
-    re_models = {"rf": rf_results, "lr": lr_results}
+    # Load feature matrix and labels
+    X = np.loadtxt(f"featureM_X_{drug}.txt", dtype="i4")
+    y = np.loadtxt(f"label_Y_{drug}.txt", dtype="i4")
 
-    for key, value in re_models.items():
-        print("Evaluation of " + key)
-        s_tn = sum(value["test_tn"])
-        s_tp = sum(value["test_tp"])
-        s_fn = sum(value["test_fn"])
-        s_fp = sum(value["test_fp"])
+    # Standardize features
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
 
-        print("tp:", s_tp, ",", "tn:", s_tn, ",", "fp:", s_fp, ",", "fn:", s_fn)
-        print("Accuracy:" + str((s_tp + s_tn) / float(s_tp + s_tn + s_fp + s_fn)))
-        # print ('Recall:'+str(s_tp/float(s_tp+s_fn)))
-        print("Specificity:" + str(s_tn / float(s_tn + s_fp)))
-        print("Sensitivity:" + str(s_tp / float(s_tp + s_fn)))
-        Precision = s_tp / float(s_tp + s_fp)
-        print("Precision:" + str(s_tp / float(s_tp + s_fp)))
-        Recall = s_tp / float(s_tp + s_fn)
-        print("F-Measure:" + str(2 * (Recall * Precision) / (Recall + Precision)))
-        # print("Accuracy: %.3f%% (%.3f%%)" % (results.mean()*100.0, results.std()*100.0))
+    # Define models
+    rf_model = RandomForestClassifier(n_estimators=1000, random_state=0, n_jobs=-1)
+    lr_model = LogisticRegression(n_jobs=-1, penalty="l2", random_state=0)
+
+    # Train and save Random Forest model
+    rf_model.fit(X, y)
+    save_model(rf_model, f"random_forest_{drug}.joblib")
+
+    # Evaluate Random Forest
+    rf_metrics = evaluate_model(rf_model, X, y, scoring)
+    print("Random Forest Results:")
+    for metric, value in rf_metrics.items():
+        print(f"{metric}: {value:.4f}")
+
+    # Train and save Logistic Regression model
+    lr_model.fit(X, y)
+    save_model(lr_model, f"logistic_regression_{drug}.joblib")
+
+    # Evaluate Logistic Regression
+    lr_metrics = evaluate_model(lr_model, X, y, scoring)
+    print("Logistic Regression Results:")
+    for metric, value in lr_metrics.items():
+        print(f"{metric}: {value:.4f}")
+
+    print("\n")

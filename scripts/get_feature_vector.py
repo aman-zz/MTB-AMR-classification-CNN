@@ -9,6 +9,7 @@ import os
 import pandas as pd
 from pandas import ExcelWriter
 from pandas import ExcelFile
+import json
 
 lineage = [
     "LAM",
@@ -245,5 +246,5 @@ for antibio in firstLine_TB_4antibio:
     )
     print(len(y))
     print(len(f_matrics))
-    np.savetxt("featureM_X_" + antibio + ".txt", f_matrics, fmt="%d")
-    np.savetxt("label_Y_" + antibio + ".txt", y, fmt="%d")
+    np.savetxt("single_featureM_X_" + antibio + ".txt", f_matrics, fmt="%d")
+    np.savetxt("single_label_Y_" + antibio + ".txt", y, fmt="%d")

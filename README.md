@@ -32,6 +32,9 @@ Give the number of threads you want to use using -n.
 ### Run Ariba with anaconda
 Install miniconda [here](https://docs.anaconda.com/miniconda/miniconda-install/)
 
+    conda config --add channels bioconda
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
     conda create -n ariba --file req.txt
     conda activate ariba
     ariba prepareref -f out.card.fa -m out.card.tsv out.card.prepareref

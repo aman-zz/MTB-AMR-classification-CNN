@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 import psutil
 from concurrent.futures import ThreadPoolExecutor
+import runAribaInLoop_withBam
 
 def main():
     file_sra, out_dir = getArgs()
@@ -47,9 +48,23 @@ def getfastq(sra, out_dir, threads_count):
     f_file1 = out_dir + "/" + sra + "_1.fastq"
     f_file2 = out_dir + "/" + sra + "_2.fastq"
     if not (os.path.isfile(f_file1) and os.path.isfile(f_file2)):
+        if (os.path.isfile("aribaResult_withBam" + "/outRun_" + sra + "/report.tsv")):
+            print("Report already exixts for ", sra)
+            return
         print("\n--- API Call for {} ---\n".format(sra))
         with open("fastqDumpLog.txt", "a+") as f:
             subprocess.call(cmd)
+    runAribaInLoop_withBam.runAriba(sra, out_dir, "aribaResult_withBam")
+    if os.path.exists(f_file1):
+        os.remove(f_file1)
+        print(f"File {f_file1} has been removed.")
+    else:
+        print(f"The file {f_file1} does not exist.")
+    if os.path.exists(f_file2):
+        os.remove(f_file2)
+        print(f"File {f_file2} has been removed.")
+    else:
+        print(f"The file {f_file2} does not exist.")
 
 
 if __name__ == "__main__":
