@@ -1,70 +1,119 @@
+#!/usr/bin/env python3
+# fasterq_download.py (improved)
 import subprocess
 import json
 import os
+import time
+import logging
 from argparse import ArgumentParser
-from argparse import RawTextHelpFormatter
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 import psutil
-from concurrent.futures import ThreadPoolExecutor
-import runAribaInLoop_withBam
+import runAribaInLoop_withBam as ariba_runner
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def load_sra_list(path):
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"SRA list file not found: {path}")
+    # support either json list or newline-separated file with "..." entries
+    try:
+        data = json.load(p.open())
+        if isinstance(data, list):
+            return data
+    except Exception:
+        text = p.read_text().strip().splitlines()
+        # tolerant extraction of quoted accessions
+        out = []
+        for t in text:
+            t = t.strip()
+            if not t:
+                continue
+            if t.startswith('"') and '"' in t[1:]:
+                out.append(t.split('"')[1])
+            else:
+                out.append(t)
+        return out
+    return []
+
+
+def run_fasterq_dump(sra, out_dir, threads_count, retries=2, wait=5):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    f1 = out_dir / f"{sra}_1.fastq"
+    f2 = out_dir / f"{sra}_2.fastq"
+    if f1.exists() and f2.exists():
+        logging.info("%s: fastq pair already exists, skipping download", sra)
+        return True
+
+    cmd = ["fasterq-dump", sra, "--threads", str(threads_count), "-O", str(out_dir)]
+    for attempt in range(1, retries + 2):
+        logging.info("%s: running fasterq-dump attempt %d: %s", sra, attempt, " ".join(cmd))
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            logging.warning("%s: fasterq-dump failed on attempt %d: %s", sra, attempt, str(e))
+            if attempt <= retries:
+                logging.info("%s: retrying after %d seconds...", sra, wait)
+                time.sleep(wait)
+                continue
+            else:
+                logging.error("%s: all fasterq-dump attempts failed", sra)
+                return False
+        # success - ensure both files exist
+        if f1.exists() and f2.exists():
+            logging.info("%s: download complete", sra)
+            return True
+        else:
+            logging.warning("%s: expected fastq pair not found after fasterq-dump", sra)
+            return False
+
+
+def process_sra(sra, out_dir, ariba_out_dir, threads_count):
+    ok = run_fasterq_dump(sra, out_dir, threads_count)
+    # Run ARIBA only if download succeeded (and report not already present)
+    if ok:
+        ariba_out = Path(ariba_out_dir) / f"outRun_{sra}"
+        report = ariba_out / "report.tsv"
+        if report.exists():
+            logging.info("%s: ARIBA report already exists (%s), skipping ARIBA.", sra, report)
+        else:
+            try:
+                ariba_runner.runAriba(sra, out_dir, ariba_out_dir)
+            except Exception as e:
+                logging.exception("%s: ariba_runner.runAriba raised an exception: %s", sra, e)
+    # cleanup fastq files if present to save space
+    for ext in ("_1.fastq", "_2.fastq"):
+        p = Path(out_dir) / f"{sra}{ext}"
+        if p.exists():
+            try:
+                p.unlink()
+                logging.info("%s: removed %s", sra, p.name)
+            except Exception:
+                logging.exception("%s: failed to remove %s", sra, p)
+
 
 def main():
-    file_sra, out_dir = getArgs()
-    # load a list of unique SRA accessions from a jason file, which you want
-    # to download their fastq files
-    sra_list = json.load(open(file_sra))
-    threads_count = psutil.cpu_count() - 2
-
-    with ThreadPoolExecutor(max_workers=threads_count) as executor:
-        for sra in sra_list:
-            executor.submit(getfastq, sra, out_dir, threads_count)
-
-def getArgs():
-    parser = ArgumentParser(
-        formatter_class=RawTextHelpFormatter,
-        prog="fasterq_download.py",
-        description="Execute fasterq-dump call for given list of SRAs.",
-    )
-    parser.add_argument("-f", "--fSRAs", dest="fileSRAs")
-
-    parser.add_argument("-o", "--oDir", dest="outDir")
+    parser = ArgumentParser(prog="fasterq_download.py", description="Download FASTQ for SRAs and run ARIBA.")
+    parser.add_argument("-f", "--fSRAs", required=True, help="SRA list (json list or newline file)")
+    parser.add_argument("-o", "--oDir", required=True, help="Directory to write fastq (temporary)")
+    parser.add_argument("-a", "--ariba_out", default="aribaResult_withBam", help="ARIBA output directory")
+    parser.add_argument("-t", "--threads", type=int, default=max(1, psutil.cpu_count() - 2), help="Threads per fasterq-dump")
+    parser.add_argument("-w", "--workers", type=int, default=4, help="Concurrent SRAs to process")
     args = parser.parse_args()
-    f_sra = args.fileSRAs
-    o_dir = args.outDir
 
-    return f_sra, o_dir
+    sra_list = load_sra_list(args.fSRAs)
+    logging.info("Loaded %d SRA accessions", len(sra_list))
 
-
-def getfastq(sra, out_dir, threads_count):
-    # run fasterq-dump from sra toolkit to download fastq files
-    cmd = [
-        "fasterq-dump",  # if you set sra toolkit's path to PATH, call fasterq-dump directly
-        sra,
-        "--threads",
-        str(threads_count),
-        "-O",
-        out_dir,  # directory where you want to save the fastq files
-    ]
-    # when it is not the first run, it tries to download missing fastq files
-    f_file1 = out_dir + "/" + sra + "_1.fastq"
-    f_file2 = out_dir + "/" + sra + "_2.fastq"
-    if not (os.path.isfile(f_file1) and os.path.isfile(f_file2)):
-        if (os.path.isfile("aribaResult_withBam" + "/outRun_" + sra + "/report.tsv")):
-            print("Report already exixts for ", sra)
-            return
-        print("\n--- API Call for {} ---\n".format(sra))
-        with open("fastqDumpLog.txt", "a+") as f:
-            subprocess.call(cmd)
-    runAribaInLoop_withBam.runAriba(sra, out_dir, "aribaResult_withBam")
-    if os.path.exists(f_file1):
-        os.remove(f_file1)
-        print(f"File {f_file1} has been removed.")
-    else:
-        print(f"The file {f_file1} does not exist.")
-    if os.path.exists(f_file2):
-        os.remove(f_file2)
-        print(f"File {f_file2} has been removed.")
-    else:
-        print(f"The file {f_file2} does not exist.")
+    with ThreadPoolExecutor(max_workers=args.workers) as exe:
+        futures = [exe.submit(process_sra, sra, args.oDir, args.ariba_out, args.threads) for sra in sra_list]
+        for fut in as_completed(futures):
+            try:
+                fut.result()
+            except Exception:
+                logging.exception("Processing a SRA failed")
 
 
 if __name__ == "__main__":
