@@ -63,7 +63,7 @@ def runAriba(sra, in_dir, out_dir):
                 "run",
                 #"--noclean",
                 "--verbose",
-                "out.card.prepareref",
+                "out1.card.prepareref",
                 reads1,
                 reads2,
                 out_dir,

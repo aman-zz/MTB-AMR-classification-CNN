@@ -71,15 +71,14 @@ def run_fasterq_dump(sra, out_dir, threads_count, retries=2, wait=5):
             return False
 
 
-def process_sra(sra, out_dir, ariba_out_dir, threads_count):
-    ok = run_fasterq_dump(sra, out_dir, threads_count)
-    # Run ARIBA only if download succeeded (and report not already present)
-    if ok:
-        ariba_out = Path(ariba_out_dir) / f"outRun_{sra}"
-        report = ariba_out / "report.tsv"
-        if report.exists():
-            logging.info("%s: ARIBA report already exists (%s), skipping ARIBA.", sra, report)
-        else:
+def process_sra(sra, out_dir, ariba_out_dir, threads_count, delete):
+    ariba_out = Path(ariba_out_dir) / f"outRun_{sra}"
+    report = ariba_out / "report.tsv"
+    if report.exists():
+        logging.info("%s: ARIBA report already exists (%s), skipping ARIBA.", sra, report)
+    else:
+        ok = run_fasterq_dump(sra, out_dir, threads_count)
+        if ok:
             try:
                 ariba_runner.runAriba(sra, out_dir, ariba_out_dir)
             except Exception as e:
@@ -87,7 +86,7 @@ def process_sra(sra, out_dir, ariba_out_dir, threads_count):
     # cleanup fastq files if present to save space
     for ext in ("_1.fastq", "_2.fastq"):
         p = Path(out_dir) / f"{sra}{ext}"
-        if p.exists():
+        if p.exists() and delete:
             try:
                 p.unlink()
                 logging.info("%s: removed %s", sra, p.name)
@@ -102,13 +101,15 @@ def main():
     parser.add_argument("-a", "--ariba_out", default="aribaResult_withBam", help="ARIBA output directory")
     parser.add_argument("-t", "--threads", type=int, default=max(1, psutil.cpu_count() - 2), help="Threads per fasterq-dump")
     parser.add_argument("-w", "--workers", type=int, default=4, help="Concurrent SRAs to process")
+    parser.add_argument("--delete", action="store_true", help="Delete downloaded files after processing (default: False)")
+
     args = parser.parse_args()
 
     sra_list = load_sra_list(args.fSRAs)
     logging.info("Loaded %d SRA accessions", len(sra_list))
 
     with ThreadPoolExecutor(max_workers=args.workers) as exe:
-        futures = [exe.submit(process_sra, sra, args.oDir, args.ariba_out, args.threads) for sra in sra_list]
+        futures = [exe.submit(process_sra, sra, args.oDir, args.ariba_out, args.threads, args.delete) for sra in sra_list]
         for fut in as_completed(futures):
             try:
                 fut.result()

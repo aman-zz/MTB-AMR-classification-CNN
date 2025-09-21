@@ -1,7 +1,7 @@
 import json
 
 # Read from file
-with open("Susceptible.txt", "r") as f:
+with open("srr", "r") as f:
     lines = [line.strip() for line in f if line.strip()]
 
 # Convert to JSON array
