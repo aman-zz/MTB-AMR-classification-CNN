@@ -128,3 +128,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+aribaResult*
+fasterq.tmp*
+fastqDump
+**.csv**
+**.tsv**
+*.fa

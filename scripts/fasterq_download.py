@@ -71,14 +71,14 @@ def run_fasterq_dump(sra, out_dir, threads_count, retries=2, wait=5):
             return False
 
 
-def process_sra(sra, out_dir, ariba_out_dir, threads_count, delete):
+def process_sra(sra, out_dir, ariba_out_dir, threads_count, delete, ariba_run):
     ariba_out = Path(ariba_out_dir) / f"outRun_{sra}"
     report = ariba_out / "report.tsv"
     if report.exists():
         logging.info("%s: ARIBA report already exists (%s), skipping ARIBA.", sra, report)
     else:
         ok = run_fasterq_dump(sra, out_dir, threads_count)
-        if ok:
+        if ok and ariba_run:
             try:
                 ariba_runner.runAriba(sra, out_dir, ariba_out_dir)
             except Exception as e:
@@ -102,6 +102,8 @@ def main():
     parser.add_argument("-t", "--threads", type=int, default=max(1, psutil.cpu_count() - 2), help="Threads per fasterq-dump")
     parser.add_argument("-w", "--workers", type=int, default=4, help="Concurrent SRAs to process")
     parser.add_argument("--delete", action="store_true", help="Delete downloaded files after processing (default: False)")
+    parser.add_argument("--ariba_run", action="store_true", help="Run ariba after isotope download (default: False)")
+
 
     args = parser.parse_args()
 
@@ -109,7 +111,7 @@ def main():
     logging.info("Loaded %d SRA accessions", len(sra_list))
 
     with ThreadPoolExecutor(max_workers=args.workers) as exe:
-        futures = [exe.submit(process_sra, sra, args.oDir, args.ariba_out, args.threads, args.delete) for sra in sra_list]
+        futures = [exe.submit(process_sra, sra, args.oDir, args.ariba_out, args.threads, args.delete, args.ariba_run) for sra in sra_list]
         for fut in as_completed(futures):
             try:
                 fut.result()
